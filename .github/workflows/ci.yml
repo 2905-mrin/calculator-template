@@ -8,7 +8,24 @@ on:
 
 jobs:
 
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+
   test:
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
@@ -26,11 +43,8 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v
 
-      - name: Check coverage
-        run: pytest tests/ --cov=src --cov-report=term
 
-
-  quality:
+  coverage:
     needs: test
     runs-on: ubuntu-latest
 
@@ -46,15 +60,34 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Lint code
+      - name: Run coverage
+        run: pytest tests/ --cov=src --cov-report=term
+
+
+  quality:
+    needs: coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pylint
         run: pylint src/ --disable=fixme
 
       - name: Check formatting
         run: black --check src/ tests/
 
-      - name: Security scan
+      - name: Run security scan
         run: bandit -r src/
-
 
   package:
     needs: quality
@@ -64,10 +97,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Package application
+      - name: Package project
         run: zip -r calculator.zip src README.md requirements.txt
 
-      - name: Upload package
+      - name: Upload deployment package
         uses: actions/upload-artifact@v4
         with:
           name: calculator-package
