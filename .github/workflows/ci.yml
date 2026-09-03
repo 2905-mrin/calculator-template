@@ -1,4 +1,4 @@
-name: CI/CD pipeline
+name: Calculator CI/CD
 
 on:
   push:
@@ -8,24 +8,7 @@ on:
 
 jobs:
 
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.13"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-
   test:
-    needs: build
     runs-on: ubuntu-latest
 
     steps:
@@ -33,7 +16,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
@@ -43,8 +26,11 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v
 
+      - name: Check coverage
+        run: pytest tests/ --cov=src --cov-report=term
 
-  coverage:
+
+  quality:
     needs: test
     runs-on: ubuntu-latest
 
@@ -53,101 +39,36 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run coverage
-        run: pytest tests/ --cov=src --cov-report=html
-
-
-  lint:
-    needs: coverage
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.13"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run pylint
+      - name: Lint code
         run: pylint src/ --disable=fixme
 
-
-  format:
-    needs: lint
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.13"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
       - name: Check formatting
-        run: black src/ tests/
+        run: black --check src/ tests/
 
-
-  security:
-    needs: format
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.13"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run security scan
+      - name: Security scan
         run: bandit -r src/
 
 
-  deploy:
-    needs: security
+  package:
+    needs: quality
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.13"
+      - name: Package application
+        run: zip -r calculator.zip src README.md requirements.txt
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Compile Python files
-        run: python -m compileall -b -f src
-
-      - name: Package project
-        run: zip -r deployment-package.zip src README.md requirements.txt
-
-      - name: Upload deployment package
+      - name: Upload package
         uses: actions/upload-artifact@v4
         with:
-          name: deployment-zip
-          path: deployment-package.zip
+          name: calculator-package
+          path: calculator.zip
